@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+coverage/
+# Raw Swagger 1.2 snapshot is re-fetchable with `pnpm spec:sync`; only derived files are committed.
+spec/swagger12/

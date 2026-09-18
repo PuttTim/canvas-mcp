@@ -1,0 +1,52 @@
+{
+  "name": "canvas-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for Canvas LMS (student-first, Cloudflare Workers-first)",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "stdio": "tsx src/adapters/cli.ts stdio",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "spec:sync": "tsx scripts/spec-sync.ts",
+    "spec:derive": "tsx scripts/spec-derive.ts",
+    "spec:coverage": "tsx scripts/spec-coverage.ts",
+    "gen:types": "tsx scripts/gen-types.ts",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "node-html-markdown": "^2.0.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20260918.1",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@types/node": "^24",
+    "tsdown": "^0.23.0",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9",
+    "vitest": "^5.0.1",
+    "wrangler": "^4.135.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "core-js-pure"
+    ]
+  }
+}

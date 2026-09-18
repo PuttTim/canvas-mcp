@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "canvas-mcp",
+  "main": "src/adapters/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // M1 adds: kv_namespaces OAUTH_KV, durable_objects THROTTLE, secret PROPS_KEY.
+  "vars": {
+    "CANVAS_MCP_TOOLSETS": "default"
+  }
+}
