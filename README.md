@@ -14,13 +14,24 @@ See [PLAN.md](./PLAN.md) for the design and roadmap.
 - M1 (hosted): OAuth consent flow on Cloudflare Workers, encrypted token storage, per-token
   throttle Durable Object, deployed at `https://canvas-mcp.putt.workers.dev`. Implemented;
   the real Claude connector login and two-student live flow still need verification.
-- M2 (implemented locally): 98 new student tools across assignments, submissions, grades,
+- M2 (deployed): 98 new student tools across assignments, submissions, grades,
   modules, pages, announcements, discussions, files, calendar, planner and conversations.
-  The catalogue now has 117 tools before safety filtering. M2 has not been deployed.
+  The catalogue now has 117 tools before safety filtering.
 - M3: quizzes, groups, people, outcomes, bookmarks, generic API tools and further safety
   hardening. Next.
 
 ## Connect a client to the hosted server
+
+The [live tool catalogue](https://canvas-mcp.putt.workers.dev/) lists this deployment's
+tools, descriptions, and every required OAuth scope. Search by name/description or filter
+by toolset and permission. Read tools need `canvas:read`; mutations also need
+`canvas:write`, with `canvas:destructive` or `canvas:submit` where shown. These are MCP
+permissions; Canvas still enforces your course and file access.
+
+The page is generated directly from `allTools` and `CANVAS_MCP_TOOLSETS`, not a manually
+maintained list. Register a new tool with its `kind` and optional `feature`, then deploy:
+the page updates with the running build. Scope-mapping tests keep the catalogue aligned
+with the actual access gates. No login, Canvas requests, or JavaScript is needed to browse it.
 
 Add `https://canvas-mcp.putt.workers.dev/mcp` as a remote MCP server in your client
 (Claude: Customize → Connectors → + → Add custom connector). The client will open a consent
@@ -51,7 +62,7 @@ to the signed storage URL returned by Canvas; the Canvas token is never sent to 
 3. For a first read-only test, uncheck **Make changes**, **Allow deletions**, and
    **Allow submitting**.
 4. Enable Canvas in a chat and ask: “Use Canvas to identify my account and list my courses.”
-   This exercises `canvas_me` and `canvas_courses_list` on the deployed M1 server.
+   This exercises `canvas_me` and `canvas_courses_list` on the hosted server.
 
 See [Claude's custom connector instructions](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 Claude's remote connector reaches the server from the cloud, so a localhost URL must
@@ -72,7 +83,7 @@ OAuth consent flow, then list tools and call `canvas_me` with `{}` and
 not your raw Canvas personal token. A direct unauthenticated request returning **401**
 with `WWW-Authenticate` is expected.
 
-To test the new **local M2** tools, start `pnpm dev` using the local setup below, then run:
+To test **local changes** before deploying, start `pnpm dev` using the local setup below, then run:
 
 ```bash
 npx @modelcontextprotocol/inspector --server-url http://127.0.0.1:8787/mcp --transport http

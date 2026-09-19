@@ -22,7 +22,8 @@ import { CanvasClient } from "../canvas/client.ts";
 import { type EnvConfig, parseToolsets, type ServerContext, safetyFromEnv } from "../context.ts";
 import { buildServer } from "../server.ts";
 import { DurableObjectThrottleStore, ThrottleDurableObject } from "../state/throttle-do.ts";
-import { handleAuthorize, handleLanding } from "./consent.ts";
+import { handleAuthorize } from "./consent.ts";
+import { handleLanding } from "./landing.ts";
 
 export { ThrottleDurableObject };
 
@@ -118,7 +119,7 @@ const defaultHandler: ExportedHandler<Env> = {
     const url = new URL(request.url);
     switch (url.pathname) {
       case "/":
-        return handleLanding();
+        return handleLanding(request, env);
       case "/health":
         return json(200, { name: "canvas-mcp", mcp: "/mcp", status: "ok" });
       case "/authorize":

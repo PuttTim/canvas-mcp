@@ -139,6 +139,11 @@ describe("worker", () => {
     });
     const landing = await SELF.fetch(`${ORIGIN}/`);
     expect(landing.headers.get("content-type")).toContain("text/html");
+    const catalogue = await landing.text();
+    expect(catalogue).toContain('data-tool="canvas_files_files_list"');
+    expect(catalogue).toContain('data-tool="canvas_submissions_submit"');
+    expect(catalogue).toContain("canvas:destructive");
+    expect(landing.headers.get("cache-control")).toBe("no-store");
     const meta = (await (
       await SELF.fetch(`${ORIGIN}/.well-known/oauth-authorization-server`)
     ).json()) as Record<string, unknown>;
@@ -158,6 +163,15 @@ describe("worker", () => {
     });
     expect(res.status).toBe(401);
     expect(res.headers.get("www-authenticate")).toContain("resource_metadata");
+  });
+
+  it("serves filtered tool documentation publicly without Canvas access", async () => {
+    const response = await SELF.fetch(`${ORIGIN}/?toolset=files&scope=canvas%3Aread`);
+    const html = await response.text();
+    expect(response.status).toBe(200);
+    expect(html).toContain('data-tool="canvas_files_file_get"');
+    expect(html).not.toContain('data-tool="canvas_files_upload"');
+    expect(html).not.toContain('data-tool="canvas_courses_list"');
   });
 
   it("renders the consent form and rejects bad input without storing anything", async () => {

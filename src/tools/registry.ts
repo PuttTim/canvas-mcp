@@ -1,5 +1,6 @@
 import type { CallToolResult, McpServer, ToolAnnotations } from "@modelcontextprotocol/server";
 import type { z } from "zod";
+import { type CanvasScope, FEATURE_SCOPES, SCOPES } from "../auth/grant.ts";
 import { CanvasError } from "../canvas/errors.ts";
 import type { Feature, ServerContext, Toolset } from "../context.ts";
 
@@ -69,6 +70,15 @@ export function isEnabled(def: ToolDef, ctx: ServerContext): boolean {
   if (def.kind === "irreversible" && !ctx.allowDestructive) return false;
   if (def.feature && !ctx.features.has(def.feature)) return false;
   return true;
+}
+
+/** All scopes needed on a hosted connection; read is included in every grant. */
+export function requiredScopesForTool(def: ToolDef): CanvasScope[] {
+  const scopes: CanvasScope[] = [SCOPES.read];
+  if (def.kind !== "read") scopes.push(SCOPES.write);
+  if (def.kind === "irreversible") scopes.push(SCOPES.destructive);
+  if (def.feature) scopes.push(FEATURE_SCOPES[def.feature]);
+  return [...new Set(scopes)];
 }
 
 function preview(value: unknown): string {

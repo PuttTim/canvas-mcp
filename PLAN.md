@@ -303,7 +303,7 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 - Verification: mocked OAuth/PKCE flow and live discovery passed. The real Claude login,
   two-student live flow, and grant revocation are not yet verified by the current tests.
 
-### M2 — Student toolsets, breadth (implemented locally 2026-09-19; not deployed)
+### M2 — Student toolsets, breadth (deployed 2026-09-19)
 - `assignments`, `submissions`, `grades`, `modules`, `pages`, `announcements`,
   `discussions`, `files`, `calendar`, `planner`, `conversations`.
 - Projections, HTML→Markdown, `dry_run`, fixtures per tool.
@@ -323,8 +323,9 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
   assignment dates; `submission_summary_mine` summarizes only the current student's
   fetched submissions. Subscribed topics and reserved appointment groups are filtered
   after pagination and preserve continuation cursors.
-- Real institution behavior and a real Claude connector login remain unverified. Production
-  continues to serve M1 until M2 is deployed.
+- Production now serves M2 with a registry-derived public tool/scope catalogue. Real NUS
+  read-only file tools have been checked; institution-specific writes and a real Claude
+  connector login remain unverified. See the live catalogue for deployed capabilities.
 
 ### M3 — Remaining toolsets, safety hardening
 - `quizzes`, `groups`, `people`, `outcomes`, `bookmarks`, `api`.

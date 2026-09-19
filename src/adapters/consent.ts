@@ -43,15 +43,6 @@ input[type=text],input[type=password]{width:100%;padding:.5rem;font-size:1rem;bo
   });
 }
 
-function landing(): Response {
-  return page(
-    "Canvas MCP",
-    `<h1>Canvas MCP</h1>
-<p>A Model Context Protocol server for your own Canvas LMS account. Add this server's <code>/mcp</code> URL to an MCP client (Claude, ChatGPT, Cursor, …); it will send you to a consent page where you paste your Canvas URL and a personal access token.</p>
-<p class="muted">Your token is stored encrypted and only ever sent to the Canvas instance you name. Revoke access any time by deleting the token in Canvas (Account → Settings → Approved Integrations).</p>`,
-  );
-}
-
 function consentForm(opts: {
   action: string;
   clientName: string;
@@ -184,8 +175,4 @@ export async function handleAuthorize(request: Request, env: ConsentEnv): Promis
     props,
   });
   return Response.redirect(redirectTo, 302);
-}
-
-export function handleLanding(): Response {
-  return landing();
 }
