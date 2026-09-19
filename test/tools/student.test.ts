@@ -42,8 +42,21 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("student tool fixtures", () => {
   it("covers every M2 tool, with unique names", () => {
+    const m2Toolsets = new Set([
+      "assignments",
+      "submissions",
+      "grades",
+      "modules",
+      "pages",
+      "announcements",
+      "discussions",
+      "files",
+      "calendar",
+      "planner",
+      "conversations",
+    ]);
     const names = allTools
-      .filter((t) => !["me", "courses"].includes(t.toolset))
+      .filter((t) => m2Toolsets.has(t.toolset))
       .map((t) => t.name)
       .sort();
     const fixtures = [...studentFixtures, ...uploadFixtures].map((t) => t.name).sort();
@@ -186,7 +199,11 @@ describe("student tool boundaries", () => {
     expect(mock.calls).toHaveLength(0);
   });
   it("keeps submit opt-in and every mutation hidden for read-only connections", () => {
-    const ctx = context(mockFetch([]).fetch, { features: new Set(), allowDestructive: false });
+    const ctx = context(mockFetch([]).fetch, {
+      toolsets: parseToolsets("all"),
+      features: new Set(),
+      allowDestructive: false,
+    });
     expect(isEnabled(tool("canvas_submissions_submit"), ctx)).toBe(false);
     expect(isEnabled(tool("canvas_planner_note_delete"), ctx)).toBe(false);
     for (const definition of allTools)

@@ -152,6 +152,66 @@ export const conversations = {
   deleteMessage: endpoint("POST", "/api/v1/conversations/{conversation_id}/remove_messages"),
 };
 
+export const quizzes = {
+  list: endpoint("GET", "/api/v1/courses/{course_id}/quizzes"),
+  get: endpoint("GET", "/api/v1/courses/{course_id}/quizzes/{quiz_id}"),
+  submissions: endpoint("GET", "/api/v1/courses/{course_id}/quizzes/{quiz_id}/submissions"),
+  start: endpoint("POST", "/api/v1/courses/{course_id}/quizzes/{quiz_id}/submissions"),
+  questions: endpoint("GET", "/api/v1/quiz_submissions/{quiz_submission_id}/questions"),
+  answer: endpoint("POST", "/api/v1/quiz_submissions/{quiz_submission_id}/questions"),
+  flag: endpoint(
+    "PUT",
+    "/api/v1/quiz_submissions/{quiz_submission_id}/questions/{question_id}/flag",
+  ),
+  unflag: endpoint(
+    "PUT",
+    "/api/v1/quiz_submissions/{quiz_submission_id}/questions/{question_id}/unflag",
+  ),
+  time: endpoint(
+    "GET",
+    "/api/v1/courses/{course_id}/quizzes/{quiz_id}/submissions/{quiz_submission_id}/time",
+  ),
+  complete: endpoint(
+    "POST",
+    "/api/v1/courses/{course_id}/quizzes/{quiz_id}/submissions/{quiz_submission_id}/complete",
+  ),
+};
+
+export const groups = {
+  mine: endpoint("GET", "/api/v1/users/self/groups"),
+  get: endpoint("GET", "/api/v1/groups/{group_id}"),
+  members: endpoint("GET", "/api/v1/groups/{group_id}/users"),
+  activity: endpoint("GET", "/api/v1/groups/{group_id}/activity_stream"),
+  discussions: endpoint("GET", "/api/v1/groups/{group_id}/discussion_topics"),
+  files: endpoint("GET", "/api/v1/groups/{group_id}/files"),
+  pages: endpoint("GET", "/api/v1/groups/{group_id}/pages"),
+  join: endpoint("POST", "/api/v1/groups/{group_id}/memberships"),
+  invite: endpoint("POST", "/api/v1/groups/{group_id}/invite"),
+  post: endpoint("POST", "/api/v1/groups/{group_id}/discussion_topics/{topic_id}/entries"),
+  leave: endpoint("DELETE", "/api/v1/groups/{group_id}/memberships/self"),
+};
+
+export const people = {
+  user: endpoint("GET", "/api/v1/users/{user_id}"),
+  search: endpoint("GET", "/api/v1/courses/{course_id}/search_users"),
+  sections: endpoint("GET", "/api/v1/courses/{course_id}/sections"),
+  enrollments: endpoint("GET", "/api/v1/users/self/enrollments"),
+};
+
+export const outcomes = {
+  results: endpoint("GET", "/api/v1/courses/{course_id}/outcome_results"),
+  rollups: endpoint("GET", "/api/v1/courses/{course_id}/outcome_rollups"),
+  get: endpoint("GET", "/api/v1/outcomes/{outcome_id}"),
+};
+
+export const bookmarks = {
+  list: endpoint("GET", "/api/v1/users/self/bookmarks"),
+  get: endpoint("GET", "/api/v1/users/self/bookmarks/{bookmark_id}"),
+  create: endpoint("POST", "/api/v1/users/self/bookmarks"),
+  update: endpoint("PUT", "/api/v1/users/self/bookmarks/{bookmark_id}"),
+  delete: endpoint("DELETE", "/api/v1/users/self/bookmarks/{bookmark_id}"),
+};
+
 export const studentOperations = Object.values({
   assignments,
   submissions,
@@ -163,4 +223,9 @@ export const studentOperations = Object.values({
   calendar,
   planner,
   conversations,
+  quizzes,
+  groups,
+  people,
+  outcomes,
+  bookmarks,
 }).flatMap(Object.values);

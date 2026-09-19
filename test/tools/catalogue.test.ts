@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import { handleLanding, toolCatalogue } from "../../src/adapters/landing.ts";
 import { ALL_SCOPES, SCOPES, safetyFromScopes } from "../../src/auth/grant.ts";
 import { CanvasClient } from "../../src/canvas/client.ts";
-import { parseToolsets } from "../../src/context.ts";
+import { DEFAULT_TOOLSETS, parseToolsets } from "../../src/context.ts";
 import { allTools } from "../../src/tools/index.ts";
 import { isEnabled, requiredScopesForTool } from "../../src/tools/registry.ts";
 
 const request = (query = "") => new Request(`https://canvas-mcp.test/${query}`);
 const rows = (html: string) => [...html.matchAll(/data-tool="([^"]+)"/g)].map((match) => match[1]);
+const defaultTools = allTools.filter((tool) => DEFAULT_TOOLSETS.includes(tool.toolset));
 
 describe("tool catalogue", () => {
   it("derives every tool and its scopes from the registry", () => {
     const catalogue = toolCatalogue({});
-    expect(catalogue.map((tool) => tool.name)).toEqual(allTools.map((tool) => tool.name));
-    for (const tool of allTools) {
+    expect(catalogue.map((tool) => tool.name)).toEqual(defaultTools.map((tool) => tool.name));
+    for (const tool of defaultTools) {
       expect(catalogue.find((item) => item.name === tool.name)).toMatchObject({
         description: tool.description,
         toolset: tool.toolset,
@@ -28,7 +29,7 @@ describe("tool catalogue", () => {
     const added = { ...first, name: "canvas_me_new_tool", description: "A future tool" };
     const catalogue = toolCatalogue({}, [...allTools, added]);
     expect(catalogue.at(-1)).toMatchObject({ name: added.name, description: added.description });
-    expect(catalogue).toHaveLength(allTools.length + 1);
+    expect(catalogue).toHaveLength(defaultTools.length + 1);
   });
 
   it("honours the same deployment toolset filter as the protected route", async () => {
@@ -73,9 +74,9 @@ describe("public landing page", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
-    expect(rows(html).sort()).toEqual(allTools.map((tool) => tool.name).sort());
+    expect(rows(html).sort()).toEqual(defaultTools.map((tool) => tool.name).sort());
     expect(html).toContain(
-      `Showing <strong>${allTools.length}</strong> of ${allTools.length} tools`,
+      `Showing <strong>${defaultTools.length}</strong> of ${defaultTools.length} tools`,
     );
     expect(html).toContain("https://canvas-mcp.test/mcp");
     expect(html).not.toContain("<script");
@@ -95,7 +96,7 @@ describe("public landing page", () => {
   it("distinguishes read-only tools from mutations that also require the read scope", async () => {
     const html = await handleLanding(request("?scope=canvas%3Aread"), {}).text();
     expect(rows(html).sort()).toEqual(
-      allTools
+      defaultTools
         .filter((tool) => tool.kind === "read")
         .map((tool) => tool.name)
         .sort(),
@@ -105,7 +106,14 @@ describe("public landing page", () => {
 
   it("shows the submission gate without hiding it from the public catalogue", async () => {
     const html = await handleLanding(request("?scope=canvas%3Asubmit"), {}).text();
-    expect(rows(html)).toEqual(["canvas_submissions_submit"]);
+    expect(rows(html)).toEqual([
+      "canvas_submissions_submit",
+      "canvas_quizzes_submission_start",
+      "canvas_quizzes_submission_answer",
+      "canvas_quizzes_submission_flag",
+      "canvas_quizzes_submission_unflag",
+      "canvas_quizzes_submission_complete",
+    ]);
     expect(html).toContain("confirmed=true");
   });
 
@@ -120,9 +128,9 @@ describe("public landing page", () => {
 
   it("ignores invalid group/scope values and renders an empty deployment safely", async () => {
     const html = await handleLanding(request("?toolset=unknown&scope=invalid"), {}).text();
-    expect(rows(html)).toHaveLength(allTools.length);
-    const empty = await handleLanding(request(), { CANVAS_MCP_TOOLSETS: "api" }).text();
-    expect(rows(empty)).toHaveLength(0);
-    expect(empty).toContain("<strong>0</strong> tools available");
+    expect(rows(html)).toHaveLength(defaultTools.length);
+    const apiOnly = await handleLanding(request(), { CANVAS_MCP_TOOLSETS: "api" }).text();
+    expect(rows(apiOnly).sort()).toEqual(["canvas_api_find_endpoint", "canvas_api_request"]);
+    expect(apiOnly).toContain("<strong>2</strong> tools available");
   });
 });
