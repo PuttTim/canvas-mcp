@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { users } from "../canvas/services/users.ts";
 import { listResult, paginateOpts, paginationInput, verboseInput } from "./common.ts";
-import { defineTool } from "./registry.ts";
+import { defineTool, type ToolResult } from "./registry.ts";
+import { type DryRun, dryRunInput, dryRunResult } from "./request.ts";
 
 const userSummary = (u: Record<string, unknown>) => ({
   id: u.id,
@@ -238,8 +239,16 @@ export const meTools = [
     title: "Hide an activity stream item",
     description:
       "Hide one item from the user's activity stream (it stays in Canvas, just not in the stream).",
-    input: z.object({ item_id: z.number().int().positive().describe("Activity stream item id.") }),
-    handler: async ({ item_id }, ctx) => {
+    input: z.object({
+      item_id: z.number().int().positive().describe("Activity stream item id."),
+      dry_run: dryRunInput,
+    }),
+    handler: async (
+      { item_id, dry_run },
+      ctx,
+    ): Promise<ToolResult<{ hidden: boolean } | DryRun>> => {
+      if (dry_run)
+        return dryRunResult(ctx.canvas, "DELETE", `/api/v1/users/self/activity_stream/${item_id}`);
       const res = await users.hideStreamItem(ctx.canvas, item_id);
       return { structured: res.data, text: `Hidden activity item ${item_id}.` };
     },

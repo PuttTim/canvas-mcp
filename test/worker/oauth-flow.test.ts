@@ -200,6 +200,9 @@ describe("worker", () => {
     expect(names).toContain("canvas_me");
     expect(names).toContain("canvas_courses_favorite_add");
     expect(names).not.toContain("canvas_courses_favorite_remove");
+    expect(names).toContain("canvas_planner_items_list");
+    expect(names).toContain("canvas_discussions_entry_reply");
+    expect(names).not.toContain("canvas_submissions_submit");
 
     const me = await rpc(tokens.access_token, "tools/call", { name: "canvas_me", arguments: {} });
     expect(me.data.result.isError).toBeFalsy();
@@ -228,6 +231,8 @@ describe("worker", () => {
     ).map((t) => t.name);
     expect(roNames).toContain("canvas_me");
     expect(roNames).not.toContain("canvas_courses_favorite_add");
+    expect(roNames).not.toContain("canvas_conversations_reply");
+    expect(roNames).not.toContain("canvas_files_upload");
 
     const d = await connect({
       canvas_url: "school.instructure.com",
@@ -239,6 +244,61 @@ describe("worker", () => {
       (await rpc(d.access_token, "tools/list")).data.result.tools as Array<{ name: string }>
     ).map((t) => t.name);
     expect(dNames).toContain("canvas_courses_favorite_remove");
+    expect(dNames).toContain("canvas_planner_note_delete");
+  });
+
+  it("serves M2 planner results for each grant's Canvas instance", async () => {
+    const school = await connect();
+    const other = await connect({ canvas_url: "other.instructure.com", token: "good-token" });
+    for (const [tokens, host] of [
+      [school, "school.instructure.com"],
+      [other, "other.instructure.com"],
+    ] as const) {
+      const result = await rpc(tokens.access_token, "tools/call", {
+        name: "canvas_planner_items_list",
+        arguments: { start_date: "2026-09-19", end_date: "2026-09-26" },
+      });
+      expect(result.data.result.isError).toBeFalsy();
+      expect(result.data.result.structuredContent.items[0].html_url).toBe(
+        `https://${host}/courses/1/assignments/2`,
+      );
+    }
+  });
+
+  it("gates submit by OAuth consent and previews the payload through /mcp", async () => {
+    const tokens = await connect({
+      canvas_url: "school.instructure.com",
+      token: "good-token",
+      allow_write: "on",
+      allow_submit: "on",
+    });
+    const tools = (await rpc(tokens.access_token, "tools/list")).data.result.tools as Array<{
+      name: string;
+    }>;
+    expect(tools.map((t) => t.name)).toContain("canvas_submissions_submit");
+    const args = {
+      course_id: 1,
+      assignment_id: 2,
+      submission: { submission_type: "online_text_entry", body: "Reviewed answer" },
+    };
+    const blocked = await rpc(tokens.access_token, "tools/call", {
+      name: "canvas_submissions_submit",
+      arguments: args,
+    });
+    expect(blocked.data.result.isError).toBe(true);
+    const preview = await rpc(tokens.access_token, "tools/call", {
+      name: "canvas_submissions_submit",
+      arguments: { ...args, dry_run: true },
+    });
+    expect(preview.data.result.isError).toBeFalsy();
+    expect(preview.data.result.structuredContent).toMatchObject({
+      dry_run: true,
+      request: {
+        method: "POST",
+        url: "https://school.instructure.com/api/v1/courses/1/assignments/2/submissions",
+        body: { submission: args.submission },
+      },
+    });
   });
 
   it("rejects a bogus bearer on /mcp", async () => {

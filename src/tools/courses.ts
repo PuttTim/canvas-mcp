@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { courses } from "../canvas/services/courses.ts";
-import type { Course } from "../canvas/types.gen.ts";
+import type { Course, CourseNickname, Favorite } from "../canvas/types.gen.ts";
 import {
   courseIdInput,
   listResult,
@@ -9,7 +9,8 @@ import {
   verboseInput,
 } from "./common.ts";
 import { htmlToMarkdown } from "./project.ts";
-import { defineTool } from "./registry.ts";
+import { defineTool, type ToolResult } from "./registry.ts";
+import { type DryRun, dryRunInput, dryRunResult } from "./request.ts";
 
 const COURSE_INCLUDES = [
   "term",
@@ -241,8 +242,14 @@ export const courseTools = [
     idempotent: true,
     title: "Add course to favourites",
     description: "Star a course so it shows on the user's dashboard.",
-    input: z.object({ course_id: courseIdInput }),
-    handler: async ({ course_id }, ctx) => {
+    input: z.object({ course_id: courseIdInput, dry_run: dryRunInput }),
+    handler: async ({ course_id, dry_run }, ctx): Promise<ToolResult<Favorite | DryRun>> => {
+      if (dry_run)
+        return dryRunResult(
+          ctx.canvas,
+          "POST",
+          `/api/v1/users/self/favorites/courses/${course_id}`,
+        );
       const res = await courses.addFavorite(ctx.canvas, course_id);
       return { structured: res.data, text: `Course ${course_id} added to favourites.` };
     },
@@ -256,8 +263,14 @@ export const courseTools = [
     title: "Remove course from favourites",
     description:
       "Unstar a course so it no longer shows on the user's dashboard. Reversible by adding it again, but it is a deletion so it is gated as destructive.",
-    input: z.object({ course_id: courseIdInput }),
-    handler: async ({ course_id }, ctx) => {
+    input: z.object({ course_id: courseIdInput, dry_run: dryRunInput }),
+    handler: async ({ course_id, dry_run }, ctx): Promise<ToolResult<Favorite | DryRun>> => {
+      if (dry_run)
+        return dryRunResult(
+          ctx.canvas,
+          "DELETE",
+          `/api/v1/users/self/favorites/courses/${course_id}`,
+        );
       const res = await courses.removeFavorite(ctx.canvas, course_id);
       return { structured: res.data, text: `Course ${course_id} removed from favourites.` };
     },
@@ -287,8 +300,19 @@ export const courseTools = [
     idempotent: true,
     title: "Set a course nickname",
     description: "Set the user's personal nickname for a course (max 60 characters).",
-    input: z.object({ course_id: courseIdInput, nickname: z.string().min(1).max(60) }),
-    handler: async ({ course_id, nickname }, ctx) => {
+    input: z.object({
+      course_id: courseIdInput,
+      nickname: z.string().min(1).max(60),
+      dry_run: dryRunInput,
+    }),
+    handler: async (
+      { course_id, nickname, dry_run },
+      ctx,
+    ): Promise<ToolResult<CourseNickname | DryRun>> => {
+      if (dry_run)
+        return dryRunResult(ctx.canvas, "PUT", `/api/v1/users/self/course_nicknames/${course_id}`, {
+          nickname,
+        });
       const res = await courses.setNickname(ctx.canvas, course_id, nickname);
       return { structured: res.data, text: `Course ${course_id} is now nicknamed "${nickname}".` };
     },
@@ -301,8 +325,14 @@ export const courseTools = [
     idempotent: true,
     title: "Remove a course nickname",
     description: "Remove the user's personal nickname for a course, restoring the official name.",
-    input: z.object({ course_id: courseIdInput }),
-    handler: async ({ course_id }, ctx) => {
+    input: z.object({ course_id: courseIdInput, dry_run: dryRunInput }),
+    handler: async ({ course_id, dry_run }, ctx): Promise<ToolResult<CourseNickname | DryRun>> => {
+      if (dry_run)
+        return dryRunResult(
+          ctx.canvas,
+          "DELETE",
+          `/api/v1/users/self/course_nicknames/${course_id}`,
+        );
       const res = await courses.removeNickname(ctx.canvas, course_id);
       return { structured: res.data, text: `Nickname removed for course ${course_id}.` };
     },

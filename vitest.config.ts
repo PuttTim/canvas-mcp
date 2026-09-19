@@ -34,6 +34,15 @@ function mockCanvas(request: { url: string; headers: { get(name: string): string
       return json(200, [
         { id: 1, name: "Algorithms", course_code: "CS3230", workflow_state: "available" },
       ]);
+    case "/api/v1/planner/items":
+      return json(200, [
+        {
+          course_id: 1,
+          plannable_type: "assignment",
+          plannable: { id: 2, title: "Essay", due_at: "2026-09-25T15:59:00Z" },
+          html_url: `https://${url.hostname}/courses/1/assignments/2`,
+        },
+      ]);
     default:
       return json(404, { errors: [{ message: "The specified resource does not exist." }] });
   }
