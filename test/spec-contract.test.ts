@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { studentOperations } from "../src/canvas/services/student.ts";
 
 interface Endpoint {
   method: string;
@@ -12,9 +13,10 @@ interface Endpoint {
 }
 
 const root = path.resolve(import.meta.dirname, "..");
-const endpoints = JSON.parse(
-  readFileSync(path.join(root, "spec/endpoints.json"), "utf8"),
-) as Endpoint[];
+const endpoints: Endpoint[] = [
+  ...JSON.parse(readFileSync(path.join(root, "spec/endpoints.json"), "utf8")),
+  ...JSON.parse(readFileSync(path.join(root, "spec/overrides.json"), "utf8")),
+];
 
 /** `{id}` in the spec and `${expr}` in code both become a wildcard segment. Literal segments must match exactly, except that a literal may match a spec wildcard (e.g. `self`). */
 function segments(p: string): string[] {
@@ -60,7 +62,7 @@ function harvest(): Array<{ file: string; method: string; path: string }> {
 }
 
 describe("spec contract", () => {
-  const used = harvest();
+  const used = [...harvest(), ...studentOperations.map((o) => ({ ...o, file: "student.ts" }))];
   it("harvests at least one endpoint from the service layer", () => {
     expect(used.length).toBeGreaterThan(0);
   });

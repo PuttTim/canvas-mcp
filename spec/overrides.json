@@ -1,0 +1,9 @@
+[
+  {
+    "method": "DELETE",
+    "path": "/api/v1/courses/{course_id}/modules/{module_id}/items/{id}/done",
+    "reason": "Swagger lists PUT only; its operation description explicitly documents DELETE to mark not done.",
+    "source": "https://developerdocs.instructure.com/services/canvas/resources/modules#method.context_module_items_api.mark_done",
+    "verified": "2026-09-19"
+  }
+]

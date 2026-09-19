@@ -39,6 +39,8 @@ export interface CanvasResponse<T> {
 }
 
 export interface PaginateOptions {
+  /** Some Canvas lists use an object envelope, e.g. { grading_periods: [...] }. */
+  listKey?: string;
   /** Items per page (Canvas caps around 100). Default 50. */
   perPage?: number;
   /** Hard cap on pages fetched. Default 1. */
@@ -140,12 +142,21 @@ export class CanvasClient {
       await this.throttle.acquire();
       let res: Response;
       try {
-        const init: RequestInit = { method, headers, signal: opts.signal ?? null };
+        const init: RequestInit = {
+          method,
+          headers,
+          signal: opts.signal ?? null,
+          redirect: "manual",
+        };
         if (body !== undefined) init.body = body;
         res = await this.fetchImpl(url, init);
       } catch (err) {
         await this.throttle.release({});
-        if (attempt < this.maxRetries && !opts.signal?.aborted) {
+        if (
+          (method === "GET" || method === "HEAD") &&
+          attempt < this.maxRetries &&
+          !opts.signal?.aborted
+        ) {
           await this.backoff(attempt++);
           continue;
         }
@@ -188,7 +199,7 @@ export class CanvasClient {
         (res.status === 403 && remaining !== undefined && remaining <= 0);
       const retryable =
         rateLimited || res.status === 502 || res.status === 503 || res.status === 504;
-      if (retryable && attempt < this.maxRetries) {
+      if (retryable && (method === "GET" || method === "HEAD") && attempt < this.maxRetries) {
         const retryAfter = numberHeader(res.headers, "retry-after");
         await this.backoff(attempt++, retryAfter ? retryAfter * 1000 : undefined);
         continue;
@@ -220,9 +231,13 @@ export class CanvasClient {
     let url: string | undefined = opts.pageUrl ?? withQuery(path, { ...query, per_page: perPage });
     let fetched = 0;
     while (url && fetched < maxPages) {
-      const res: CanvasResponse<T[]> = await this.request<T[]>("GET", url, { signal: opts.signal });
+      const res: CanvasResponse<T[] | Record<string, T[]>> = await this.request<
+        T[] | Record<string, T[]>
+      >("GET", url, { signal: opts.signal });
+      const data = opts.listKey && !Array.isArray(res.data) ? res.data[opts.listKey] : res.data;
+      if (!Array.isArray(data)) throw new Error("Canvas returned an unexpected list response.");
       fetched++;
-      yield res;
+      yield { ...res, data };
       url = res.links.next;
     }
   }

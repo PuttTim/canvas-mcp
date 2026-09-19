@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CanvasClient } from "../../src/canvas/client.ts";
 import { CanvasError } from "../../src/canvas/errors.ts";
 import { NoopThrottleStore } from "../../src/canvas/throttle.ts";
@@ -41,6 +41,43 @@ describe("CanvasClient", () => {
       /Refusing/,
     );
     expect(m.calls).toHaveLength(0);
+  });
+
+  it("does not follow redirects with credentials", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://evil.example/collect" },
+      });
+    });
+    await expect(client(fetcher).get("/api/v1/users/self")).rejects.toMatchObject({ status: 302 });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["POST", "PUT", "DELETE"])(
+    "does not replay a %s after an ambiguous server or network failure",
+    async (method) => {
+      const fetcher = vi.fn<typeof fetch>(
+        async () => new Response("gateway timeout", { status: 504 }),
+      );
+      await expect(
+        client(fetcher).request(method, "/api/v1/conversations", { body: { body: "hello" } }),
+      ).rejects.toMatchObject({ status: 504 });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      const network = vi.fn<typeof fetch>(async () => {
+        throw new Error("connection lost");
+      });
+      await expect(client(network).request(method, "/api/v1/conversations")).rejects.toMatchObject({
+        status: 0,
+      });
+      expect(network).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("fails on unexpected list shapes instead of silently returning no results", async () => {
+    const mock = mockFetch([{ path: "/api/v1/courses", json: { message: "not a list" } }]);
+    await expect(client(mock.fetch).collect("/api/v1/courses")).rejects.toThrow(/unexpected list/);
   });
 
   it("normalises errors and hints", async () => {
