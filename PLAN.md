@@ -303,12 +303,28 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 - Verification: mocked OAuth/PKCE flow and live discovery passed. The real Claude login,
   two-student live flow, and grant revocation are not yet verified by the current tests.
 
-### M2 — Student toolsets, breadth
+### M2 — Student toolsets, breadth (implemented locally 2026-09-19; not deployed)
 - `assignments`, `submissions`, `grades`, `modules`, `pages`, `announcements`,
   `discussions`, `files`, `calendar`, `planner`, `conversations`.
 - Projections, HTML→Markdown, `dry_run`, fixtures per tool.
 - Exit: an agent can answer "what's due this week", read an assignment, submit a text
   entry, reply to a discussion, and read inbox messages.
+- Implementation: 98 new tools (117 total), with fixtures for every tool, projections,
+  bounded pagination and write previews. The exit workflow passes through an MCP SDK
+  client against mocked Canvas; protected Workers tests cover planner reads and submit
+  previews after OAuth consent, including separate Canvas instances.
+- All writes, including M0 tools, support `dry_run`. Submission is hidden without the
+  `submit` scope/feature and requires explicit `confirmed: true` for execution. Elicitation
+  remains M3 work. No real academic work or messages were submitted while testing.
+- Uploads accept bounded base64 (5 MiB decoded) and perform the three-step Canvas flow;
+  they do not submit the assignment. This is a bounded-buffer implementation, not the
+  unbounded streaming upload proposed above. Larger files use Canvas's own upload UI.
+- Student endpoint interpretations: `overrides_for_me` returns Canvas's effective personal
+  assignment dates; `submission_summary_mine` summarizes only the current student's
+  fetched submissions. Subscribed topics and reserved appointment groups are filtered
+  after pagination and preserve continuation cursors.
+- Real institution behavior and a real Claude connector login remain unverified. Production
+  continues to serve M1 until M2 is deployed.
 
 ### M3 — Remaining toolsets, safety hardening
 - `quizzes`, `groups`, `people`, `outcomes`, `bookmarks`, `api`.

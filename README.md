@@ -14,12 +14,16 @@ See [PLAN.md](./PLAN.md) for the design and roadmap.
 - M1 (hosted): OAuth consent flow on Cloudflare Workers, encrypted token storage, per-token
   throttle Durable Object, deployed at `https://canvas-mcp.putt.workers.dev`. Implemented;
   the real Claude connector login and two-student live flow still need verification.
-- M2: the remaining student toolsets. Next.
+- M2 (implemented locally): 98 new student tools across assignments, submissions, grades,
+  modules, pages, announcements, discussions, files, calendar, planner and conversations.
+  The catalogue now has 117 tools before safety filtering. M2 has not been deployed.
+- M3: quizzes, groups, people, outcomes, bookmarks, generic API tools and further safety
+  hardening. Next.
 
 ## Connect a client to the hosted server
 
 Add `https://canvas-mcp.putt.workers.dev/mcp` as a remote MCP server in your client
-(Claude: Settings → Connectors → Add custom connector). The client will open a consent
+(Claude: Customize → Connectors → + → Add custom connector). The client will open a consent
 page; paste your Canvas URL and a personal access token (Canvas → Account → Settings →
 Approved Integrations → New Access Token) and choose what the connection may do:
 
@@ -33,7 +37,78 @@ Approved Integrations → New Access Token) and choose what the connection may d
 Your Canvas token is verified against your instance before anything is stored, then sealed
 with AES-GCM under a Worker secret and stored inside the OAuth grant (which the provider
 encrypts again). It is only ever sent to the Canvas host you named. Revoke by deleting the
-token in Canvas or disconnecting the connector.
+token in Canvas or disconnecting the connector. During file uploads, file bytes are sent
+to the signed storage URL returned by Canvas; the Canvas token is never sent to that URL.
+
+## Test the MCP
+
+### On a website: Claude
+
+1. Open [Claude's connectors page](https://claude.ai/settings/connectors) and add a custom
+   connector named **Canvas**, with URL `https://canvas-mcp.putt.workers.dev/mcp`.
+2. Leave optional OAuth client ID/secret fields blank; this server supports automatic
+   client registration. Connect and enter your Canvas URL/token on the consent page.
+3. For a first read-only test, uncheck **Make changes**, **Allow deletions**, and
+   **Allow submitting**.
+4. Enable Canvas in a chat and ask: “Use Canvas to identify my account and list my courses.”
+   This exercises `canvas_me` and `canvas_courses_list` on the deployed M1 server.
+
+See [Claude's custom connector instructions](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+Claude's remote connector reaches the server from the cloud, so a localhost URL must
+be tested with a local MCP client such as Inspector.
+
+### Browser debugging: MCP Inspector
+
+The [official MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) runs a
+browser UI on your machine. With Node 22.19 or later:
+
+```bash
+npx @modelcontextprotocol/inspector --server-url https://canvas-mcp.putt.workers.dev/mcp --transport http
+```
+
+Open the session URL printed by Inspector. Connect using **Streamable HTTP**, finish the
+OAuth consent flow, then list tools and call `canvas_me` with `{}` and
+`canvas_courses_list` with `{}`. Use OAuth for `/mcp`: its bearer is an MCP access token,
+not your raw Canvas personal token. A direct unauthenticated request returning **401**
+with `WWW-Authenticate` is expected.
+
+To test the new **local M2** tools, start `pnpm dev` using the local setup below, then run:
+
+```bash
+npx @modelcontextprotocol/inspector --server-url http://127.0.0.1:8787/mcp --transport http
+```
+
+After connecting, try these read tools using IDs from your own account:
+
+| Tool | Example arguments |
+|---|---|
+| `canvas_planner_items_list` | `{"start_date":"2026-09-19","end_date":"2026-09-26"}` |
+| `canvas_assignments_list` | `{"course_id":123,"bucket":"upcoming"}` |
+| `canvas_assignments_get` | `{"course_id":123,"assignment_id":456}` |
+| `canvas_conversations_list` | `{"scope":"unread"}` |
+| `canvas_conversations_get` | `{"conversation_id":789}` |
+
+Replace the sample dates/IDs. Lists return `next_page_url`; pass it as `page_url` to
+continue, or set bounded `max_pages` (up to 20). Reading a conversation does not mark it
+read. Enable **Make changes** to test a write preview, for example
+`canvas_planner_note_create` with
+`{"title":"Test note","todo_date":"2026-09-26","dry_run":true}`. A preview makes no
+Canvas requests and changes nothing.
+
+### Automated checks (no real Canvas account needed)
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm exec wrangler deploy --dry-run
+```
+
+Tests cover every M2 tool with fixtures, request payloads, write previews, pagination,
+Markdown projections, upload redirects/token isolation, and the MCP workflow for due
+items → assignment → text submission → discussion reply → inbox. Workers tests exercise
+OAuth consent, instance isolation and submission scope gates against mocked Canvas.
+They do not establish a successful real Claude login or real institution write behavior.
 
 ## Local use (stdio)
 
@@ -101,6 +176,31 @@ destructive operations are enabled. Tools that submit academic work are behind t
 feature flag. Tool names are stable (`canvas_<resource>_<verb>`) so hosts can write exact
 allow/deny rules.
 
+Every mutation supports `dry_run: true`. Assignment submission additionally requires
+the `submit` feature/scope and `confirmed: true` after the user approves the exact payload;
+client elicitation is still scheduled for M3. A dry run does not submit anything:
+
+```json
+{
+  "course_id": 123,
+  "assignment_id": 456,
+  "submission": { "submission_type": "online_text_entry", "body": "<p>My answer</p>" },
+  "dry_run": true
+}
+```
+
+The submission tool also accepts `online_url`, `online_upload` (file IDs), and
+`media_recording`, each with its required fields. Upload tools accept `name`,
+`content_type` and `content_base64` (at most **5 MiB** decoded). They buffer that bounded
+JSON payload and use Canvas's multipart upload/confirmation flow; larger files should be
+uploaded through Canvas. Uploading does **not** submit an assignment. Duplicate filenames
+are renamed instead of overwritten.
+
+Writes are not automatically retried after network/server errors. Check Canvas before
+retrying an ambiguous failure to avoid duplicate messages, posts or submissions. Canvas
+still enforces course permissions; student page edits, peer reviews and other optional
+features may be unavailable at your institution.
+
 ## Spec pipeline
 
 ```bash
@@ -109,6 +209,10 @@ pnpm spec:derive    # → spec/endpoints.json + spec/models.json
 pnpm gen:types      # → src/canvas/types.gen.ts
 pnpm test           # includes the contract test: every service path must be documented
 ```
+
+`spec/overrides.json` records source-linked corrections where the Swagger operation list
+omits an endpoint that the accompanying Canvas documentation explicitly describes
+(currently DELETE for marking a module item not done). The original manifest is preserved.
 
 ## Development
 
