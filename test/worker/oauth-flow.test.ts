@@ -165,6 +165,79 @@ describe("worker", () => {
     expect(res.headers.get("www-authenticate")).toContain("resource_metadata");
   });
 
+  it.each([
+    { method: "POST", headers: {} },
+    { method: "DELETE", headers: {} },
+    { method: "GET", headers: { accept: "application/json, text/event-stream" } },
+    { method: "GET", headers: { accept: "text/event-stream" } },
+    { method: "HEAD", headers: { accept: "application/json" } },
+    { method: "GET", headers: { accept: "Application/JSON; charset=utf-8; q=0.5" } },
+    { method: "GET", headers: { "mcp-protocol-version": "2025-11-25" } },
+    { method: "GET", headers: { "mcp-session-id": "test-session" } },
+    { method: "GET", headers: { authorization: "Bearer not-a-real-token" } },
+  ])("redirects MCP traffic at / to /mcp: %j", async ({ method, headers }) => {
+    const response = await SELF.fetch(`${ORIGIN}/?client=inspector`, {
+      method,
+      headers: new Headers(headers),
+      redirect: "manual",
+      ...(method === "POST" ? { body: '{"jsonrpc":"2.0","id":1,"method":"ping"}' } : {}),
+    });
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`${ORIGIN}/mcp?client=inspector`);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("vary")).toContain("Accept");
+    expect(await response.text()).toBe("");
+  });
+
+  it.each([
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "*/*",
+    "text/html,application/json;q=0,text/event-stream;q=0.000",
+  ])("keeps the homepage for browser/documentation requests: %s", async (accept) => {
+    const response = await SELF.fetch(`${ORIGIN}/?toolset=files`, {
+      headers: { accept },
+      redirect: "manual",
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toContain('data-tool="canvas_files_file_get"');
+  });
+
+  it("keeps redirects on the request origin, ignoring untrusted forwarding headers", async () => {
+    const response = await SELF.fetch(`${ORIGIN}/?next=https%3A%2F%2Fother.example`, {
+      method: "POST",
+      headers: { "x-forwarded-host": "other.example", "x-forwarded-proto": "http" },
+      body: "{}",
+      redirect: "manual",
+    });
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.origin).toBe(ORIGIN);
+    expect(location.pathname).toBe("/mcp");
+  });
+
+  it("follows a root POST redirect into OAuth discovery instead of HTML", async () => {
+    const res = await rpc("not-a-real-token", "tools/list", {}, "/");
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toContain(
+      `${ORIGIN}/.well-known/oauth-protected-resource/mcp`,
+    );
+    expect(res.headers.get("content-type")).not.toContain("text/html");
+  });
+
+  it("preserves authenticated JSON-RPC POSTs when following the root redirect", async () => {
+    const tokens = await connect({ canvas_url: "school.instructure.com", token: "good-token" });
+    const result = await rpc(
+      tokens.access_token,
+      "tools/call",
+      { name: "canvas_me", arguments: {} },
+      "/",
+    );
+    expect(result.status, result.text).toBe(200);
+    expect(result.data.result.isError).toBeFalsy();
+    expect(result.data.result.structuredContent).toMatchObject({ id: 42, name: "Ada Lovelace" });
+  });
+
   it("serves filtered tool documentation publicly without Canvas access", async () => {
     const response = await SELF.fetch(`${ORIGIN}/?toolset=files&scope=canvas%3Aread`);
     const html = await response.text();

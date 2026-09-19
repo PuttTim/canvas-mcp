@@ -114,11 +114,45 @@ async function directBearer(request: Request, env: Env): Promise<Response> {
   });
 }
 
+/** Recognize MCP traffic without guessing client identity from its User-Agent. */
+function isMcpRequest(request: Request): boolean {
+  if (request.method === "POST" || request.method === "DELETE") return true;
+  if (
+    request.headers.has("mcp-protocol-version") ||
+    request.headers.has("mcp-session-id") ||
+    /^Bearer\s+/i.test(request.headers.get("authorization") ?? "")
+  ) {
+    return true;
+  }
+  return (request.headers.get("accept") ?? "").split(",").some((entry) => {
+    const [type, ...parameters] = entry.trim().toLowerCase().split(";");
+    if (type?.trim() !== "application/json" && type?.trim() !== "text/event-stream") {
+      return false;
+    }
+    const quality = parameters.find((parameter) => /^\s*q\s*=/.test(parameter));
+    return quality === undefined || Number(quality.split("=")[1]?.trim()) > 0;
+  });
+}
+
 const defaultHandler: ExportedHandler<Env> = {
   async fetch(request, env) {
     const url = new URL(request.url);
     switch (url.pathname) {
       case "/":
+        if (isMcpRequest(request)) {
+          // Same-origin 307 keeps the method, body and authorization on retries.
+          // Leave OAuth discovery and token routes to the provider; /mcp remains
+          // the canonical protected resource, so this never bypasses its auth.
+          url.pathname = "/mcp";
+          return new Response(null, {
+            status: 307,
+            headers: {
+              location: url.toString(),
+              "cache-control": "no-store",
+              vary: "Accept, Authorization, MCP-Protocol-Version, MCP-Session-Id",
+            },
+          });
+        }
         return handleLanding(request, env);
       case "/health":
         return json(200, { name: "canvas-mcp", mcp: "/mcp", status: "ok" });

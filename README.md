@@ -33,6 +33,15 @@ maintained list. Register a new tool with its `kind` and optional `feature`, the
 the page updates with the running build. Scope-mapping tests keep the catalogue aligned
 with the actual access gates. No login, Canvas requests, or JavaScript is needed to browse it.
 
+If a client is given the homepage URL without `/mcp`, MCP-style requests to `/` receive
+a same-origin `307` redirect to `/mcp`, preserving their method, body, and query string.
+This covers POST/DELETE, JSON or event-stream Accept headers, MCP protocol/session
+headers, and bearer-authenticated requests. Ordinary browser visits still show the
+catalogue. `/mcp` remains the recommended connector URL, especially for clients that
+do not follow redirects or keep the original URL for strict OAuth resource validation
+(the current TypeScript MCP SDK does the latter). The normal OAuth checks still apply
+after the redirect; the canonical protected resource remains `/mcp`.
+
 Add `https://canvas-mcp.putt.workers.dev/mcp` as a remote MCP server in your client
 (Claude: Customize → Connectors → + → Add custom connector). The client will open a consent
 page; paste your Canvas URL and a personal access token (Canvas → Account → Settings →
