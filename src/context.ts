@@ -1,3 +1,4 @@
+import type { CanvasUserId } from "./auth/canvas-id.ts";
 import type { CanvasClient } from "./canvas/client.ts";
 
 export const TOOLSETS = [
@@ -42,7 +43,7 @@ export interface ServerContext extends SafetyConfig {
   canvas: CanvasClient;
   toolsets: ReadonlySet<Toolset>;
   identity?:
-    | { userId?: number | undefined; name?: string | undefined; baseUrl: string }
+    | { userId?: CanvasUserId | undefined; name?: string | undefined; baseUrl: string }
     | undefined;
 }
 

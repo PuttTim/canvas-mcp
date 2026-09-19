@@ -8,6 +8,7 @@ import {
   type AuthRequest,
   type OAuthHelpers,
 } from "@cloudflare/workers-oauth-provider";
+import { type CanvasUserId, isCanvasUserId } from "../auth/canvas-id.ts";
 import { CanvasUrlError, normalizeCanvasUrl } from "../auth/canvas-url.ts";
 import { seal, tokenFingerprint } from "../auth/crypto.ts";
 import { type GrantProps, SCOPES } from "../auth/grant.ts";
@@ -134,7 +135,7 @@ export async function handleAuthorize(request: Request, env: ConsentEnv): Promis
     return fail("That does not look like a Canvas access token.");
 
   // Verify the token against the named instance before storing anything.
-  let userId: number;
+  let userId: CanvasUserId;
   let name: string;
   try {
     const probe = new CanvasClient({
@@ -143,11 +144,11 @@ export async function handleAuthorize(request: Request, env: ConsentEnv): Promis
       throttle: new NoopThrottleStore(),
       maxRetries: 1,
     });
-    const me = await probe.get<{ id?: number; name?: string }>("/api/v1/users/self");
-    if (typeof me.data?.id !== "number")
+    const me = await probe.get<{ id?: unknown; name?: unknown }>("/api/v1/users/self");
+    if (!isCanvasUserId(me.data?.id))
       return fail("Canvas responded, but not with a user profile. Is that the right URL?");
     userId = me.data.id;
-    name = me.data.name ?? `user ${userId}`;
+    name = typeof me.data.name === "string" ? me.data.name : `user ${userId}`;
   } catch (err) {
     if (err instanceof CanvasError) {
       if (err.status === 401)

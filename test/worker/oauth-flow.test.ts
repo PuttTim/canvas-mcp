@@ -207,6 +207,20 @@ describe("worker", () => {
     expect(me.data.result.content[0].text).toContain("https://school.instructure.com");
   });
 
+  it("accepts string Canvas user IDs through consent and the protected MCP route", async () => {
+    const tokens = await connect({
+      canvas_url: "string-ids.instructure.com",
+      token: "good-token",
+    });
+    const me = await rpc(tokens.access_token, "tools/call", { name: "canvas_me", arguments: {} });
+    expect(me.status, me.text).toBe(200);
+    expect(me.data.result.isError).toBeFalsy();
+    expect(me.data.result.structuredContent).toMatchObject({
+      id: "9007199254740993",
+      name: "Ada Lovelace",
+    });
+  });
+
   it("read-only consent hides write tools; destructive consent shows them", async () => {
     const ro = await connect({ canvas_url: "school.instructure.com", token: "good-token" });
     const roNames = (

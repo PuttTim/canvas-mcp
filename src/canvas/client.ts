@@ -125,7 +125,7 @@ export class CanvasClient {
     const token = await this.resolveToken();
     const headers: Record<string, string> = {
       authorization: `Bearer ${token}`,
-      accept: "application/json+canvas-string-ids, application/json",
+      accept: "application/json",
       "user-agent": this.userAgent,
       ...opts.headers,
     };

@@ -1,4 +1,5 @@
 import type { Feature, SafetyConfig } from "../context.ts";
+import { type CanvasUserId, isCanvasUserId } from "./canvas-id.ts";
 
 /** OAuth scopes this server issues. `canvas:read` is always granted. */
 export const SCOPES = {
@@ -17,7 +18,7 @@ export interface GrantProps {
   sealedToken: string;
   /** Non-reversible fingerprint of the Canvas token; keys the throttle Durable Object. */
   tokenId: string;
-  userId: number;
+  userId: CanvasUserId;
   name: string;
   scopes: string[];
 }
@@ -30,7 +31,7 @@ export function isGrantProps(x: unknown): x is GrantProps {
     typeof p.baseUrl === "string" &&
     typeof p.sealedToken === "string" &&
     typeof p.tokenId === "string" &&
-    typeof p.userId === "number" &&
+    isCanvasUserId(p.userId) &&
     typeof p.name === "string" &&
     Array.isArray(p.scopes)
   );

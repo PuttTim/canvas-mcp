@@ -30,6 +30,7 @@ describe("CanvasClient", () => {
     const call = m.calls[0];
     expect(call?.headers.get("authorization")).toBe("Bearer tok");
     expect(call?.headers.get("content-type")).toBe("application/json");
+    expect(call?.headers.get("accept")).toBe("application/json");
     expect(call?.url.search).toBe("?include%5B%5D=a");
     expect(call?.body).toBe('{"name":"n"}');
   });

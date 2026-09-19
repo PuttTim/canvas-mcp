@@ -16,12 +16,18 @@ function mockCanvas(request: { url: string; headers: { get(name: string): string
     });
   if (url.hostname === "unreachable.example") return new MfResponse("bad gateway", { status: 502 });
   if (!authed) return json(401, { errors: [{ message: "Invalid access token." }] });
+  const userId =
+    url.hostname === "string-ids.instructure.com"
+      ? "9007199254740993"
+      : request.headers.get("accept")?.includes("canvas-string-ids")
+        ? "42"
+        : 42;
   switch (url.pathname) {
     case "/api/v1/users/self":
     case "/api/v1/users/self/profile":
       return json(
         200,
-        { id: 42, name: "Ada Lovelace", primary_email: "ada@example.edu" },
+        { id: userId, name: "Ada Lovelace", primary_email: "ada@example.edu" },
         { "x-rate-limit-remaining": "699", "x-request-cost": "0.5" },
       );
     case "/api/v1/courses":
