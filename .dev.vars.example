@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `wrangler dev`. Generate a key with: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+PROPS_KEY=replace-me
+# Dev only: enable /direct/mcp bearer passthrough (Authorization: Bearer <canvas token> + X-Canvas-Base-URL)
+ALLOW_DIRECT_BEARER=1

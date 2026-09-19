@@ -2,10 +2,16 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "canvas-mcp",
   "main": "src/adapters/worker.ts",
-  "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": { "enabled": true },
-  // M1 adds: kv_namespaces OAUTH_KV, durable_objects THROTTLE, secret PROPS_KEY.
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "466c2e664435444ab8e5a878d1742bcb" }],
+  "durable_objects": {
+    "bindings": [{ "name": "THROTTLE", "class_name": "ThrottleDurableObject" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ThrottleDurableObject"] }],
+  // Secrets (wrangler secret put): PROPS_KEY — 32-byte base64url key sealing Canvas tokens.
+  // Local dev: put PROPS_KEY (and optionally ALLOW_DIRECT_BEARER=1) in .dev.vars.
   "vars": {
     "CANVAS_MCP_TOOLSETS": "default"
   }

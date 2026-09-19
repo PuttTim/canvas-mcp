@@ -36,10 +36,11 @@
     "@cloudflare/workers-types": "^5.20260918.1",
     "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^24",
+    "miniflare": "5.20260918.0-alpha",
     "tsdown": "^0.23.0",
     "tsx": "^4.23.13",
     "typescript": "^5.9",
-    "vitest": "^5.0.1",
+    "vitest": "^4.1.11",
     "wrangler": "^4.135.0"
   },
   "pnpm": {
