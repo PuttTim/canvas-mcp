@@ -10,9 +10,30 @@ See [PLAN.md](./PLAN.md) for the design and roadmap.
 
 ## Status
 
-M0 (foundation) is done: client core, spec pipeline, `me` and `courses` toolsets, stdio and
-Workers adapters (bearer passthrough). M1 adds the hosted consent flow; M2 adds the rest of
-the student toolsets.
+- M0 (foundation): client core, spec pipeline, `me` and `courses` toolsets, stdio adapter. Done.
+- M1 (hosted): OAuth consent flow on Cloudflare Workers, encrypted token storage, per-token
+  throttle Durable Object, deployed at `https://canvas-mcp.putt.workers.dev`. Implemented;
+  the real Claude connector login and two-student live flow still need verification.
+- M2: the remaining student toolsets. Next.
+
+## Connect a client to the hosted server
+
+Add `https://canvas-mcp.putt.workers.dev/mcp` as a remote MCP server in your client
+(Claude: Settings → Connectors → Add custom connector). The client will open a consent
+page; paste your Canvas URL and a personal access token (Canvas → Account → Settings →
+Approved Integrations → New Access Token) and choose what the connection may do:
+
+| Consent checkbox | OAuth scope | Effect |
+|---|---|---|
+| Read (always on) | `canvas:read` | Read tools |
+| Make changes | `canvas:write` | Write tools (post, reply, upload, notes) |
+| Allow deletions | `canvas:destructive` | Delete/remove/leave tools |
+| Allow submitting | `canvas:submit` | Assignment submit and quiz complete |
+
+Your Canvas token is verified against your instance before anything is stored, then sealed
+with AES-GCM under a Worker secret and stored inside the OAuth grant (which the provider
+encrypts again). It is only ever sent to the Canvas host you named. Revoke by deleting the
+token in Canvas or disconnecting the connector.
 
 ## Local use (stdio)
 
@@ -36,18 +57,28 @@ npx tsx src/adapters/cli.ts doctor   # verify the token and print who you are
 npx tsx src/adapters/cli.ts tools    # print the tool catalogue with annotations
 ```
 
-## Cloudflare Workers (dev)
+## Cloudflare Workers
 
 ```bash
+cp .dev.vars.example .dev.vars       # set PROPS_KEY (any 32-byte base64url key)
 pnpm dev                             # wrangler dev → http://127.0.0.1:8787/mcp
 ```
 
-Until the consent flow lands (M1), clients authenticate with headers:
+With `ALLOW_DIRECT_BEARER=1` in `.dev.vars`, `POST /direct/mcp` accepts
+`Authorization: Bearer <canvas token>` plus `X-Canvas-Base-URL` for MCP Inspector and
+scripts, bypassing OAuth. It is off in production.
 
+Deploy:
+
+```bash
+npx wrangler kv namespace create OAUTH_KV      # once; put the id in wrangler.jsonc
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put PROPS_KEY
+pnpm deploy
 ```
-Authorization: Bearer <canvas personal access token>
-X-Canvas-Base-URL: https://your-school.instructure.com
-```
+
+Routes: `/mcp` (protected), `/authorize` (consent), `/oauth/token`, `/oauth/register`,
+`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource/mcp`,
+`/health`.
 
 ## Configuration
 
@@ -55,6 +86,8 @@ X-Canvas-Base-URL: https://your-school.instructure.com
 |---|---|
 | `CANVAS_BASE_URL` | Canvas instance, e.g. `https://school.instructure.com` |
 | `CANVAS_TOKEN` | Personal access token (stdio / Node only) |
+| `PROPS_KEY` | Worker secret sealing Canvas tokens in grants (Workers only) |
+| `ALLOW_DIRECT_BEARER` | `1` enables `/direct/mcp` bearer passthrough (dev only) |
 | `CANVAS_MCP_TOOLSETS` | `default` (everything except `api`), `all`, or a comma list |
 | `CANVAS_MCP_READ_ONLY` | `1` to expose only read tools |
 | `CANVAS_MCP_ALLOW_DESTRUCTIVE` | `1` to expose delete/remove/leave tools |

@@ -283,7 +283,7 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 
 ## 5. Milestones
 
-### M0 — Foundation on Workers
+### M0 — Foundation on Workers (done 2026-09-19)
 - pnpm, TS, Biome, Vitest (+ Workers pool), CI, MIT license, `wrangler.jsonc`.
 - Spec sync + derive + types + contract test; commit the snapshot.
 - `CanvasClient` (params, pagination, memory throttle, retry, errors) with msw tests.
@@ -292,7 +292,7 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 - Exit: `wrangler dev` serves `/mcp`; Inspector lists courses with a pasted token;
   stdio does the same.
 
-### M1 — Consent flow and multi-tenancy
+### M1 — Consent flow and multi-tenancy (implemented 2026-09-19, live at https://canvas-mcp.putt.workers.dev)
 - `workers-oauth-provider` integration, consent page (URL + token + scopes), token
   validation, AES-GCM sealing, KV grants, SSRF guard.
 - Durable Object throttle store.
@@ -300,6 +300,8 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 - Deploy to `putttimmanee` account.
 - Exit: Claude web "Add custom connector" → consent → lists courses. Two students on
   different instances work from one deployment.
+- Verification: mocked OAuth/PKCE flow and live discovery passed. The real Claude login,
+  two-student live flow, and grant revocation are not yet verified by the current tests.
 
 ### M2 — Student toolsets, breadth
 - `assignments`, `submissions`, `grades`, `modules`, `pages`, `announcements`,
