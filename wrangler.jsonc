@@ -5,6 +5,10 @@
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": { "enabled": true },
+  "routes": [
+    { "pattern": "canvas.nusmcp.com", "custom_domain": true },
+    { "pattern": "canvas-mcp.putt.dev", "custom_domain": true }
+  ],
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "466c2e664435444ab8e5a878d1742bcb" }],
   "durable_objects": {
     "bindings": [{ "name": "THROTTLE", "class_name": "ThrottleDurableObject" }]
