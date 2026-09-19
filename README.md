@@ -12,13 +12,16 @@ See [PLAN.md](./PLAN.md) for the design and roadmap.
 
 - M0 (foundation): client core, spec pipeline, `me` and `courses` toolsets, stdio adapter. Done.
 - M1 (hosted): OAuth consent flow on Cloudflare Workers, encrypted token storage, per-token
-  throttle Durable Object, deployed at `https://canvas-mcp.putt.workers.dev`. Implemented;
-  the real Claude connector login and two-student live flow still need verification.
+  throttle Durable Object, deployed at `https://canvas-mcp.putt.workers.dev`. The project
+  owner confirmed the hosted connector against a real client on 2026-09-19.
 - M2 (deployed): 98 new student tools across assignments, submissions, grades,
   modules, pages, announcements, discussions, files, calendar, planner and conversations.
-  The catalogue now has 117 tools before safety filtering.
-- M3: quizzes, groups, people, outcomes, bookmarks, generic API tools and further safety
-  hardening. Next.
+  The project owner confirmed the M2 tools against a real Canvas account on 2026-09-19.
+- M3 (implemented locally): 35 tools across quizzes, groups, people, outcomes, bookmarks,
+  and an opt-in, GET-only generic API toolset. The registry now contains 152 tools; the
+  default configuration will expose 150 after deployment because `api` remains disabled
+  by default. Spec coverage reporting is implemented. Client elicitation and the agent-safety
+  document remain.
 
 ## Connect a client to the hosted server
 
@@ -124,11 +127,12 @@ pnpm test
 pnpm exec wrangler deploy --dry-run
 ```
 
-Tests cover every M2 tool with fixtures, request payloads, write previews, pagination,
+Tests cover every M2 and M3 tool with fixtures, request payloads, write previews, pagination,
 Markdown projections, upload redirects/token isolation, and the MCP workflow for due
 items → assignment → text submission → discussion reply → inbox. Workers tests exercise
 OAuth consent, instance isolation and submission scope gates against mocked Canvas.
-They do not establish a successful real Claude login or real institution write behavior.
+The automated suite does not itself establish live-client or institution behavior; those
+checks were separately confirmed by the project owner on 2026-09-19.
 
 ## Local use (stdio)
 
@@ -197,8 +201,9 @@ feature flag. Tool names are stable (`canvas_<resource>_<verb>`) so hosts can wr
 allow/deny rules.
 
 Every mutation supports `dry_run: true`. Assignment submission additionally requires
-the `submit` feature/scope and `confirmed: true` after the user approves the exact payload;
-client elicitation is still scheduled for M3. A dry run does not submit anything:
+the `submit` feature/scope and `confirmed: true` after the user approves the exact payload.
+Quiz attempt start, answers, flags and completion also require `submit`; completion requires
+`confirmed: true`. Client elicitation is still planned. A dry run does not submit anything:
 
 ```json
 {
@@ -216,6 +221,10 @@ JSON payload and use Canvas's multipart upload/confirmation flow; larger files s
 uploaded through Canvas. Uploading does **not** submit an assignment. Duplicate filenames
 are renamed instead of overwritten.
 
+File tools intentionally stop at metadata and Canvas download URLs. This server does not
+download or extract PDF, text, presentation, or other document contents; clients may fetch
+and process those files using their own bounded, permission-aware capabilities.
+
 Writes are not automatically retried after network/server errors. Check Canvas before
 retrying an ambiguous failure to avoid duplicate messages, posts or submissions. Canvas
 still enforces course permissions; student page edits, peer reviews and other optional
@@ -227,12 +236,15 @@ features may be unavailable at your institution.
 pnpm spec:sync      # snapshot Canvas's Swagger 1.2 docs from a live host into spec/swagger12/
 pnpm spec:derive    # → spec/endpoints.json + spec/models.json
 pnpm gen:types      # → src/canvas/types.gen.ts
+pnpm spec:coverage  # implemented operations by resource; separates outside-student-v1 scope
 pnpm test           # includes the contract test: every service path must be documented
 ```
 
 `spec/overrides.json` records source-linked corrections where the Swagger operation list
 omits an endpoint that the accompanying Canvas documentation explicitly describes
 (currently DELETE for marking a module item not done). The original manifest is preserved.
+Coverage counts inside shared resources are review candidates rather than promises of missing
+student features because Canvas groups student, teacher, and admin endpoints together.
 
 ## Development
 

@@ -242,9 +242,11 @@ except `api`.
 | `people` | `user_get` (limited fields), `search_course_users`, `sections_list`, `enrollments_mine` | — | — |
 | `outcomes` | `results_mine`, `rollups_mine`, `outcome_get` | — | — |
 | `bookmarks` | `list`, `get` | `create`, `update` | `delete` |
-| `api` | `find_endpoint` (search `endpoints.json` by keyword/resource/method) | `request` for GET | `request` for non-GET |
+| `api` | `find_endpoint` (search `endpoints.json` by keyword/resource/method), spec-validated GET `request` | — | — |
 
-Roughly 140 tools. Any endpoint that only makes sense with teacher/admin permissions
+The implemented registry contains 152 tools. Generic API writes are deliberately excluded:
+every mutation remains a curated tool with explicit validation and safety gates. Any endpoint
+that only makes sense with teacher/admin permissions
 (grading, enrollments management, course/assignment CRUD, SIS, reports, masquerading) is
 left for Phase 2 and lives in separate toolset files so it can be added without
 touching student ones.
@@ -300,8 +302,9 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 - Deploy to `putttimmanee` account.
 - Exit: Claude web "Add custom connector" → consent → lists courses. Two students on
   different instances work from one deployment.
-- Verification: mocked OAuth/PKCE flow and live discovery passed. The real Claude login,
-  two-student live flow, and grant revocation are not yet verified by the current tests.
+- Verification: mocked OAuth/PKCE flow and live discovery passed. The project owner confirmed
+  the hosted connector with a real client on 2026-09-19. Automated refresh/revocation and
+  authorized two-account lifecycle coverage remain separate future hardening.
 
 ### M2 — Student toolsets, breadth (deployed 2026-09-19)
 - `assignments`, `submissions`, `grades`, `modules`, `pages`, `announcements`,
@@ -315,7 +318,8 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
   previews after OAuth consent, including separate Canvas instances.
 - All writes, including M0 tools, support `dry_run`. Submission is hidden without the
   `submit` scope/feature and requires explicit `confirmed: true` for execution. Elicitation
-  remains M3 work. No real academic work or messages were submitted while testing.
+  remains future safety work. No real academic work or messages were submitted by the
+  automated tests.
 - Uploads accept bounded base64 (5 MiB decoded) and perform the three-step Canvas flow;
   they do not submit the assignment. This is a bounded-buffer implementation, not the
   unbounded streaming upload proposed above. Larger files use Canvas's own upload UI.
@@ -324,13 +328,21 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
   fetched submissions. Subscribed topics and reserved appointment groups are filtered
   after pagination and preserve continuation cursors.
 - Production now serves M2 with a registry-derived public tool/scope catalogue. Real NUS
-  read-only file tools have been checked; institution-specific writes and a real Claude
-  connector login remain unverified. See the live catalogue for deployed capabilities.
+  behavior and the hosted connector were confirmed by the project owner on 2026-09-19.
+  See the live catalogue for deployed capabilities.
 
-### M3 — Remaining toolsets, safety hardening
-- `quizzes`, `groups`, `people`, `outcomes`, `bookmarks`, `api`.
-- Read-only mode, `destructive` scope, elicitation on `submit`, agent-safety doc,
-  coverage report.
+### M3 — Remaining toolsets, safety hardening (tool breadth and coverage implemented locally 2026-09-19)
+- Added 35 tools across `quizzes`, `groups`, `people`, `outcomes`, `bookmarks`, and `api`.
+- Quiz attempt mutations require the `submit` scope; final completion requires an exact
+  dry-run review and `confirmed: true`.
+- `api` remains disabled by default and permits only documented same-instance GET requests;
+  generic writes cannot bypass curated mutation safeguards.
+- `pnpm spec:coverage` reports implemented operations by resource and separates resources
+  intentionally outside student v1. Shared-resource gaps remain review candidates rather
+  than assumed missing student features.
+- Read-only mode and the `destructive` scope were already implemented. Client elicitation
+  on `submit` and `docs/agent-safety.md` remain future safety-hardening work.
+- File-content extraction is explicitly client-owned and is not planned for this server.
 
 ### M4 — Secondary adapters, release
 - Node adapter + Dockerfile; `npm publish` (`npx canvas-mcp stdio`).
@@ -370,7 +382,7 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
   in Canvas won't be caught until a real user hits it. Mitigation: `doctor` tool that
   exercises a few read endpoints; encourage a Free-for-Teacher account later.
 - **Response size / Workers limits.** CPU and subrequest caps bound `max_pages`; uploads
-  stream rather than buffer.
+  use a bounded base64 buffer capped at 5 MiB decoded rather than an unbounded stream.
 - **Student write endpoints vary by course settings.** Page edits, discussion posting,
   and group joins may 401/403 depending on course config; errors must say so plainly.
 
@@ -381,4 +393,5 @@ default. Lists return `next_page_url`, never silent truncation. Tool defaults:
 None blocking.
 - `submissions_submit` and `quizzes_submission_complete`: implemented, hidden behind the
   `submit` feature flag (decided 2026-09-19).
-- The `api` toolset is off by default and `canvas_request` for non-GET is `irreversible`.
+- The `api` toolset is off by default and its generic request tool is GET-only. Mutations
+  must use curated tools so their validation and safety gates cannot be bypassed.
